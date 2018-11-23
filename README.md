@@ -1,9 +1,9 @@
 
 
 
+### 修改: 文件存储时,相同文件只保存一份,对NSData做MD5计算.
 
-
-## 对文件做MD5 取值,保存在filename字段.
+### 对文件做MD5 取值,保存在filename字段.
 
 
     /// data md5 hash.
@@ -22,7 +22,7 @@ static NSString *_YYNSDataMD5(NSData *data) {
 
 
 
-## // 删除缓存和保存时, 对 filename字段 count查询; 
+### // 删除缓存和保存时, 对 filename字段 count查询; 
 
 
 - (int)_dbGetItemCountWithFilename:(NSString *)filename {
@@ -40,7 +40,7 @@ static NSString *_YYNSDataMD5(NSData *data) {
 
 
 
--------------- 修改 -----------
+#### -------------- 修改 -----------
 
 
 
