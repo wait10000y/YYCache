@@ -586,6 +586,19 @@ static UIApplication *_YYSharedApplication() {
     return sqlite3_column_int(stmt, 0);
 }
 
+- (int)_dbGetItemCountWithFilename:(NSString *)filename {
+    NSString *sql = @"select count(key) from manifest where filename = ?1;";
+    sqlite3_stmt *stmt = [self _dbPrepareStmt:sql];
+    if (!stmt) return -1;
+    sqlite3_bind_text(stmt, 1, filename.UTF8String, -1, NULL);
+    int result = sqlite3_step(stmt);
+    if (result != SQLITE_ROW) {
+        if (_errorLogsEnabled) NSLog(@"%s line:%d sqlite query error (%d): %s", __FUNCTION__, __LINE__, result, sqlite3_errmsg(_db));
+        return -1;
+    }
+    return sqlite3_column_int(stmt, 0);
+}
+
 - (int)_dbGetTotalItemSize {
     NSString *sql = @"select sum(size) from manifest;";
     sqlite3_stmt *stmt = [self _dbPrepareStmt:sql];
@@ -749,19 +762,29 @@ static UIApplication *_YYSharedApplication() {
     }
     
     if (filename.length) {
-        if (![self _fileWriteWithName:filename data:value]) {
-            return NO;
-        }
-        if (![self _dbSaveWithKey:key value:value fileName:filename extendedData:extendedData]) {
-            [self _fileDeleteWithName:filename];
-            return NO;
+        int sameCount = [self _dbGetItemCountWithKey:filename];
+        if (sameCount>0) {
+            if (![self _dbSaveWithKey:key value:value fileName:filename extendedData:extendedData]) {
+                return NO;
+            }
+        }else{
+            if (![self _fileWriteWithName:filename data:value]) {
+                return NO;
+            }
+            if (![self _dbSaveWithKey:key value:value fileName:filename extendedData:extendedData]) {
+                [self _fileDeleteWithName:filename];
+                return NO;
+            }
         }
         return YES;
     } else {
         if (_type != YYKVStorageTypeSQLite) {
             NSString *filename = [self _dbGetFilenameWithKey:key];
             if (filename) {
-                [self _fileDeleteWithName:filename];
+                int sameCount = [self _dbGetItemCountWithKey:filename];
+                if (sameCount<=1) {
+                    [self _fileDeleteWithName:filename];
+                }
             }
         }
         return [self _dbSaveWithKey:key value:value fileName:nil extendedData:extendedData];
@@ -778,7 +801,10 @@ static UIApplication *_YYSharedApplication() {
         case YYKVStorageTypeMixed: {
             NSString *filename = [self _dbGetFilenameWithKey:key];
             if (filename) {
-                [self _fileDeleteWithName:filename];
+                int sameCount = [self _dbGetItemCountWithKey:filename];
+                if (sameCount<=1) {
+                    [self _fileDeleteWithName:filename];
+                }
             }
             return [self _dbDeleteItemWithKey:key];
         } break;
@@ -796,7 +822,10 @@ static UIApplication *_YYSharedApplication() {
         case YYKVStorageTypeMixed: {
             NSArray *filenames = [self _dbGetFilenameWithKeys:keys];
             for (NSString *filename in filenames) {
-                [self _fileDeleteWithName:filename];
+                int sameCount = [self _dbGetItemCountWithKey:filename];
+                if (sameCount<=1) {
+                    [self _fileDeleteWithName:filename];
+                }
             }
             return [self _dbDeleteItemWithKeys:keys];
         } break;
@@ -844,8 +873,11 @@ static UIApplication *_YYSharedApplication() {
         case YYKVStorageTypeFile:
         case YYKVStorageTypeMixed: {
             NSArray *filenames = [self _dbGetFilenamesWithTimeEarlierThan:time];
-            for (NSString *name in filenames) {
-                [self _fileDeleteWithName:name];
+            for (NSString *filename in filenames) {
+                int sameCount = [self _dbGetItemCountWithKey:filename];
+                if (sameCount<=1) {
+                    [self _fileDeleteWithName:filename];
+                }
             }
             if ([self _dbDeleteItemsWithTimeEarlierThan:time]) {
                 [self _dbCheckpoint];
@@ -872,7 +904,10 @@ static UIApplication *_YYSharedApplication() {
         for (YYKVStorageItem *item in items) {
             if (total > maxSize) {
                 if (item.filename) {
-                    [self _fileDeleteWithName:item.filename];
+                    int sameCount = [self _dbGetItemCountWithKey:item.filename];
+                    if (sameCount<=1) {
+                        [self _fileDeleteWithName:item.filename];
+                    }
                 }
                 suc = [self _dbDeleteItemWithKey:item.key];
                 total -= item.size;
@@ -902,7 +937,10 @@ static UIApplication *_YYSharedApplication() {
         for (YYKVStorageItem *item in items) {
             if (total > maxCount) {
                 if (item.filename) {
-                    [self _fileDeleteWithName:item.filename];
+                    int sameCount = [self _dbGetItemCountWithKey:item.filename];
+                    if (sameCount<=1) {
+                        [self _fileDeleteWithName:item.filename];
+                    }
                 }
                 suc = [self _dbDeleteItemWithKey:item.key];
                 total--;
@@ -940,7 +978,10 @@ static UIApplication *_YYSharedApplication() {
             for (YYKVStorageItem *item in items) {
                 if (left > 0) {
                     if (item.filename) {
-                        [self _fileDeleteWithName:item.filename];
+                        int sameCount = [self _dbGetItemCountWithKey:item.filename];
+                        if (sameCount<=1) {
+                            [self _fileDeleteWithName:item.filename];
+                        }
                     }
                     suc = [self _dbDeleteItemWithKey:item.key];
                     left--;
