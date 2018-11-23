@@ -1,3 +1,49 @@
+
+
+
+
+
+## 对文件做MD5 取值,保存在filename字段.
+
+
+    /// data md5 hash.
+static NSString *_YYNSDataMD5(NSData *data) {
+    if (data.length==0) return nil;
+    unsigned char result[CC_MD5_DIGEST_LENGTH];
+    CC_MD5(data.bytes, (CC_LONG)data.length, result);
+    return [NSString stringWithFormat:
+            @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            result[0],  result[1],  result[2],  result[3],
+            result[4],  result[5],  result[6],  result[7],
+            result[8],  result[9],  result[10], result[11],
+            result[12], result[13], result[14], result[15]
+            ];
+}
+
+
+
+## // 删除缓存和保存时, 对 filename字段 count查询; 
+
+
+- (int)_dbGetItemCountWithFilename:(NSString *)filename {
+    NSString *sql = @"select count(key) from manifest where filename = ?1;";
+    sqlite3_stmt *stmt = [self _dbPrepareStmt:sql];
+    if (!stmt) return -1;
+    sqlite3_bind_text(stmt, 1, filename.UTF8String, -1, NULL);
+    int result = sqlite3_step(stmt);
+    if (result != SQLITE_ROW) {
+        if (_errorLogsEnabled) NSLog(@"%s line:%d sqlite query error (%d): %s", __FUNCTION__, __LINE__, result, sqlite3_errmsg(_db));
+        return -1;
+    }
+    return sqlite3_column_int(stmt, 0);
+}
+
+
+
+-------------- 修改 -----------
+
+
+
 YYCache
 ==============
 
