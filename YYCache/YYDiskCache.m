@@ -30,21 +30,28 @@ static int64_t _YYDiskSpaceFree() {
     if (space < 0) space = -1;
     return space;
 }
+    /// data md5 hash.
+static NSString *_YYNSDataMD5(NSData *data) {
+    if (data.length==0) return nil;
+    unsigned char result[CC_MD5_DIGEST_LENGTH];
+    CC_MD5(data.bytes, (CC_LONG)data.length, result);
+    return [NSString stringWithFormat:
+            @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            result[0],  result[1],  result[2],  result[3],
+            result[4],  result[5],  result[6],  result[7],
+            result[8],  result[9],  result[10], result[11],
+            result[12], result[13], result[14], result[15]
+            ];
+}
 
 /// String's md5 hash.
 static NSString *_YYNSStringMD5(NSString *string) {
     if (!string) return nil;
     NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
-    unsigned char result[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(data.bytes, (CC_LONG)data.length, result);
-    return [NSString stringWithFormat:
-                @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                result[0],  result[1],  result[2],  result[3],
-                result[4],  result[5],  result[6],  result[7],
-                result[8],  result[9],  result[10], result[11],
-                result[12], result[13], result[14], result[15]
-            ];
+    return _YYNSDataMD5(data);
 }
+
+
 
 /// weak reference for all instances
 static NSMapTable *_globalInstances;
@@ -143,10 +150,11 @@ static void _YYDiskCacheSetGlobal(YYDiskCache *cache) {
     [self _trimToCost:(int)costLimit];
 }
 
-- (NSString *)_filenameForKey:(NSString *)key {
+- (NSString *)_filenameForKey:(NSString *)key value:(NSData *)value {
     NSString *filename = nil;
-    if (_customFileNameBlock) filename = _customFileNameBlock(key);
-    if (!filename) filename = _YYNSStringMD5(key);
+    if (_customFileNameBlock) filename = _customFileNameBlock(key,value);
+//    if (!filename) filename = _YYNSStringMD5(key);
+    if (!filename) filename = _YYNSDataMD5(value);
     return filename;
 }
 
@@ -284,7 +292,7 @@ static void _YYDiskCacheSetGlobal(YYDiskCache *cache) {
     NSString *filename = nil;
     if (_kv.type != YYKVStorageTypeSQLite) {
         if (value.length > _inlineThreshold) {
-            filename = [self _filenameForKey:key];
+            filename = [self _filenameForKey:key value:value];
         }
     }
     
