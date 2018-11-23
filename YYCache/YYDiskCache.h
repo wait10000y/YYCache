@@ -77,7 +77,7 @@ NS_ASSUME_NONNULL_BEGIN
  
  The default value is nil.
  */
-@property (nullable, copy) NSString *(^customFileNameBlock)(NSString *key);
+@property (nullable, copy) NSString *(^customFileNameBlock)(NSString *key,NSData *value);
 
 
 
